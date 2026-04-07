@@ -22,3 +22,4 @@ RUN sed -i 's/\r$//' /opt/hermes/docker/entrypoint.sh && chmod +x /opt/hermes/do
 
 ENV HERMES_HOME=/opt/data
 ENTRYPOINT [ "/opt/hermes/docker/entrypoint.sh" ]
+CMD [ "gateway" ]
