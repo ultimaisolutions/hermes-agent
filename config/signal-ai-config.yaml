@@ -1,0 +1,10 @@
+# Hermes Agent config for Signal AI
+# Copy to /opt/data/config.yaml or ~/.hermes/config.yaml
+
+model:
+  default: "google/gemini-2.5-flash-preview"
+  provider: "openrouter"
+  base_url: "https://openrouter.ai/api/v1"
+
+platform_toolsets:
+  telegram: [hermes-telegram, signal_ai]
