@@ -11,6 +11,8 @@ import base64
 import json
 import logging
 import os
+import ssl
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -223,12 +225,12 @@ def get_rotation_status() -> str:
         return json.dumps({"niches_total": 0, "rotation": []})
 
     try:
-        placeholders = ", ".join(f"'{name}'" for name in niche_names)
+        placeholders = ", ".join(f"${i+1}" for i in range(len(niche_names)))
         sql = (
             f"SELECT niche_name, MAX(searched_at) FROM rotation_tracker "
             f"WHERE niche_name IN ({placeholders}) GROUP BY niche_name"
         )
-        result = _neon_query(sql)
+        result = _neon_query(sql, niche_names)
         rows = result.get("rows", [])
 
         last_searched_map: Dict[str, Optional[str]] = {}
@@ -278,12 +280,12 @@ def search_instagram_creators(keyword: str, max_results: int = 10) -> str:
     try:
         url = (
             f"https://api.scrapecreators.com/v2/instagram/reels/search"
-            f"?keyword={urllib.parse.quote(keyword)}"
+            f"?keyword={urllib.parse.quote_plus(keyword)}"
         )
         req = urllib.request.Request(
             url,
             headers={
-                "Authorization": f"Bearer {api_key}",
+                "x-api-key": api_key,
                 "Accept": "application/json",
             },
             method="GET",
@@ -311,7 +313,12 @@ def search_instagram_creators(keyword: str, max_results: int = 10) -> str:
                 "post_count": owner.get("post_count", 0),
                 "is_verified": owner.get("is_verified", False),
                 "profile_url": f"https://instagram.com/{username}",
-                "discovered_via": keyword,
+                "discovered_via": {
+                    "reel_url": reel.get("url", ""),
+                    "play_count": reel.get("video_play_count", 0),
+                    "like_count": reel.get("like_count", 0),
+                    "comment_count": reel.get("comment_count", 0),
+                },
             })
             if len(creators) >= max_results:
                 break
@@ -346,23 +353,26 @@ def log_rotation(
     try:
         # Insert rotation record
         _neon_query(
-            "INSERT INTO rotation_tracker (niche_name, keywords_used, creators_found, credits_spent, searched_at) "
-            "VALUES ($1, $2, $3, $4, NOW())",
-            [niche_name, json.dumps(keywords_used), creators_found, credits_spent],
+            "INSERT INTO rotation_tracker (niche_name, keywords_used, creators_found, credits_spent) "
+            "VALUES ($1, $2, $3, $4)",
+            [niche_name, keywords_used, creators_found, credits_spent],
         )
 
         # Upsert each creator individually
         for creator in creators:
             _neon_query(
-                "INSERT INTO creators (username, follower_count, is_verified, niche_name, discovered_at) "
-                "VALUES ($1, $2, $3, $4, NOW()) "
-                "ON CONFLICT (username) DO UPDATE SET "
-                "follower_count = $2, is_verified = $3, niche_name = $4, updated_at = NOW()",
+                "INSERT INTO discovered_creators (username, niche_name, follower_count, is_verified) "
+                "VALUES ($1, $2, $3, $4) "
+                "ON CONFLICT (username, niche_name) DO UPDATE SET "
+                "last_seen_at = NOW(), "
+                "times_seen = discovered_creators.times_seen + 1, "
+                "follower_count = EXCLUDED.follower_count, "
+                "is_verified = EXCLUDED.is_verified",
                 [
-                    creator["username"],
-                    creator["follower_count"],
-                    creator["is_verified"],
+                    creator.get("username", ""),
                     niche_name,
+                    creator.get("follower_count", 0),
+                    creator.get("is_verified", False),
                 ],
             )
 
