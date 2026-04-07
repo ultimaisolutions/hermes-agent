@@ -279,7 +279,7 @@ def search_instagram_creators(keyword: str, max_results: int = 10) -> str:
     try:
         url = (
             f"https://api.scrapecreators.com/v2/instagram/reels/search"
-            f"?keyword={urllib.parse.quote_plus(keyword)}"
+            f"?query={urllib.parse.quote_plus(keyword)}"
         )
         req = urllib.request.Request(
             url,
