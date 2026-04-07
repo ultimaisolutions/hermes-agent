@@ -168,29 +168,31 @@ def get_niche_clusters() -> str:
 
     try:
         result = _neon_query(
-            "SELECT value FROM niche_cluster_cache WHERE key = 'current' LIMIT 1"
+            "SELECT clusters FROM niche_cluster_cache WHERE id = 'current' LIMIT 1"
         )
         rows = result.get("rows", [])
         if not rows:
             return json.dumps({"error": "No niche clusters found in cache"})
 
-        raw = rows[0][0]
-        cluster_data = json.loads(raw) if isinstance(raw, str) else raw
+        # Neon returns rows as dicts when using HTTP API
+        row = rows[0]
+        cluster_data = row.get("clusters", row) if isinstance(row, dict) else row[0]
 
-        # Handle both dict and list formats
-        if isinstance(cluster_data, dict):
-            clusters = cluster_data.get("clusters", [])
-        elif isinstance(cluster_data, list):
-            clusters = cluster_data
-        else:
-            clusters = []
+        # clusters is a jsonb array — parse if string
+        if isinstance(cluster_data, str):
+            cluster_data = json.loads(cluster_data)
 
+        if not isinstance(cluster_data, list):
+            cluster_data = []
+
+        # Each cluster has "label" and "slugs" fields
         niches = [
             {
-                "name": c["name"],
-                "keywords": c.get("keywords", [])[:5],
+                "name": c.get("label", c.get("name", str(c))),
+                "keywords": c.get("slugs", c.get("keywords", []))[:5],
             }
-            for c in clusters
+            for c in cluster_data
+            if isinstance(c, dict)
         ]
 
         return json.dumps({"niche_count": len(niches), "niches": niches})
@@ -229,7 +231,10 @@ def get_rotation_status() -> str:
 
         last_searched_map: Dict[str, Optional[str]] = {}
         for row in rows:
-            last_searched_map[row[0]] = row[1]
+            if isinstance(row, dict):
+                last_searched_map[row["niche_name"]] = row.get("max")
+            else:
+                last_searched_map[row[0]] = row[1]
 
         now = datetime.now(timezone.utc)
         rotation = []

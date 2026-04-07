@@ -54,20 +54,19 @@ def _make_scrape_response(reels, credits_remaining=24500):
 
 class TestGetNicheClusters:
     @patch("urllib.request.urlopen")
-    def test_returns_niches_from_dict_format(self, mock_urlopen):
-        cluster_data = {
-            "clusters": [
-                {
-                    "name": "fitness",
-                    "keywords": [
-                        "workout", "gym", "health", "diet", "protein", "cardio",
-                    ],
-                },
-                {"name": "crypto", "keywords": ["bitcoin", "defi"]},
-            ]
-        }
+    def test_returns_niches_from_label_slugs_format(self, mock_urlopen):
+        """Test the actual niche_cluster_cache schema: {label, slugs}."""
+        cluster_data = [
+            {
+                "label": "fitness",
+                "slugs": [
+                    "workout", "gym", "health", "diet", "protein", "cardio",
+                ],
+            },
+            {"label": "crypto", "slugs": ["bitcoin", "defi"]},
+        ]
         mock_urlopen.return_value = _make_neon_response(
-            [[json.dumps(cluster_data)]]
+            [{"clusters": cluster_data}]
         )
 
         from tools.signal_creators import get_niche_clusters
@@ -81,10 +80,10 @@ class TestGetNicheClusters:
     @patch("urllib.request.urlopen")
     def test_returns_niches_from_list_format(self, mock_urlopen):
         cluster_data = [
-            {"name": "ai tools", "keywords": ["chatgpt", "automation"]},
+            {"label": "ai tools", "slugs": ["chatgpt", "automation"]},
         ]
         mock_urlopen.return_value = _make_neon_response(
-            [[json.dumps(cluster_data)]]
+            [{"clusters": cluster_data}]
         )
 
         from tools.signal_creators import get_niche_clusters
@@ -121,17 +120,15 @@ class TestGetRotationStatus:
     @patch("urllib.request.urlopen")
     def test_returns_sorted_rotation(self, mock_urlopen):
         # First call: get niches (called internally by get_niche_clusters)
-        niches_resp = _make_neon_response([[json.dumps({
-            "clusters": [
-                {"name": "fitness", "keywords": ["workout"]},
-                {"name": "crypto", "keywords": ["bitcoin"]},
-                {"name": "ai tools", "keywords": ["chatgpt"]},
-            ]
-        })]])
+        niches_resp = _make_neon_response([{"clusters": [
+            {"label": "fitness", "slugs": ["workout"]},
+            {"label": "crypto", "slugs": ["bitcoin"]},
+            {"label": "ai tools", "slugs": ["chatgpt"]},
+        ]}])
         # Second call: get rotation history from rotation_tracker
         rotation_resp = _make_neon_response([
-            ["fitness", "2026-04-05T09:00:00Z"],
-            ["crypto", "2026-04-01T09:00:00Z"],
+            {"niche_name": "fitness", "max": "2026-04-05T09:00:00Z"},
+            {"niche_name": "crypto", "max": "2026-04-01T09:00:00Z"},
         ])
         mock_urlopen.side_effect = [niches_resp, rotation_resp]
 
@@ -145,9 +142,9 @@ class TestGetRotationStatus:
 
     @patch("urllib.request.urlopen")
     def test_no_rotation_history(self, mock_urlopen):
-        niches_resp = _make_neon_response([[json.dumps({
-            "clusters": [{"name": "fitness", "keywords": []}]
-        })]])
+        niches_resp = _make_neon_response([{"clusters": [
+            {"label": "fitness", "slugs": []}
+        ]}])
         rotation_resp = _make_neon_response([])
         mock_urlopen.side_effect = [niches_resp, rotation_resp]
 
