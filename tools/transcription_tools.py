@@ -94,8 +94,10 @@ _local_model_name: Optional[str] = None
 def get_stt_model_from_config() -> Optional[str]:
     """Read the STT model name from ~/.hermes/config.yaml.
 
-    Returns the value of ``stt.model`` if present, otherwise ``None``.
-    Silently returns ``None`` on any error (missing file, bad YAML, etc.).
+    Returns the provider-specific model (e.g. ``stt.local.model`` when
+    provider is ``local``, ``stt.openai.model`` for ``openai``).  Falls
+    back to the top-level ``stt.model`` only when no provider-specific
+    model is configured.  Silently returns ``None`` on any error.
     """
     try:
         import yaml
@@ -103,7 +105,17 @@ def get_stt_model_from_config() -> Optional[str]:
         if cfg_path.exists():
             with open(cfg_path) as f:
                 data = yaml.safe_load(f) or {}
-            return data.get("stt", {}).get("model")
+            stt = data.get("stt", {})
+            provider = _get_provider(stt)
+            # Read provider-specific model first
+            provider_model = stt.get(provider, {}).get("model") if isinstance(stt.get(provider), dict) else None
+            if provider_model:
+                return provider_model
+            # Fall back to top-level stt.model only if it matches the provider
+            top_model = stt.get("model")
+            if top_model and provider == "local" and top_model in OPENAI_MODELS:
+                return None  # Don't pass an OpenAI model name to local whisper
+            return top_model
     except Exception:
         pass
     return None
