@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir -e ".[all]" --break-system-packages && \
     npm cache clean --force
 
 WORKDIR /opt/hermes
-RUN chmod +x /opt/hermes/docker/entrypoint.sh
+RUN sed -i 's/\r$//' /opt/hermes/docker/entrypoint.sh && chmod +x /opt/hermes/docker/entrypoint.sh
 
 ENV HERMES_HOME=/opt/data
 ENTRYPOINT [ "/opt/hermes/docker/entrypoint.sh" ]
