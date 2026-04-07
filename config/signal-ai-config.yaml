@@ -2,9 +2,20 @@
 # Copy to /opt/data/config.yaml or ~/.hermes/config.yaml
 
 model:
-  default: "google/gemma-4-31b-it"
+  default: "google/gemma-4-27b-a4b-it"
   provider: "openrouter"
   base_url: "https://openrouter.ai/api/v1"
 
+# Only load the toolsets Telegram actually needs
+# (reduces tool schemas from 39 to ~15, saving ~10K tokens per call)
 platform_toolsets:
-  telegram: [hermes-telegram, signal_ai]
+  telegram:
+    - signal_ai
+    - skills
+    - memory
+    - web
+    - terminal
+    - file
+    - cronjob
+    - clarify
+    - session_search

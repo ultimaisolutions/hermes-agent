@@ -21,32 +21,57 @@ if [ ! -f "$HERMES_HOME/config.yaml" ]; then
     cp "$INSTALL_DIR/cli-config.yaml.example" "$HERMES_HOME/config.yaml"
 fi
 
-# Apply model override from HERMES_MODEL env var into config.yaml
-# (config.yaml is the single source of truth for model selection)
-if [ -n "$HERMES_MODEL" ]; then
+# Apply overrides from signal-ai config and env vars into config.yaml
+# (config.yaml is the single source of truth for model and toolset selection)
+if [ -f "$INSTALL_DIR/config/signal-ai-config.yaml" ] || [ -n "$HERMES_MODEL" ]; then
     python3 -c "
 import yaml, os
+
 cfg_path = os.path.join(os.environ.get('HERMES_HOME', '/opt/data'), 'config.yaml')
+override_path = os.path.join(os.environ.get('INSTALL_DIR', '/opt/hermes'), 'config', 'signal-ai-config.yaml')
+
 with open(cfg_path) as f:
     config = yaml.safe_load(f) or {}
-model_cfg = config.get('model', {})
-if isinstance(model_cfg, str):
-    model_cfg = {'default': model_cfg}
-elif not isinstance(model_cfg, dict):
-    model_cfg = {}
-desired = os.environ['HERMES_MODEL']
-provider = os.environ.get('HERMES_INFERENCE_PROVIDER', '')
-if model_cfg.get('default') != desired:
-    model_cfg['default'] = desired
-    if provider:
-        model_cfg['provider'] = provider
-    config['model'] = model_cfg
+
+changed = False
+
+# Load signal-ai overrides if present
+override = {}
+if os.path.exists(override_path):
+    with open(override_path) as f:
+        override = yaml.safe_load(f) or {}
+
+# Apply model: env var takes priority over signal-ai config
+desired_model = os.environ.get('HERMES_MODEL') or (override.get('model', {}) or {}).get('default', '')
+desired_provider = os.environ.get('HERMES_INFERENCE_PROVIDER') or (override.get('model', {}) or {}).get('provider', '')
+
+if desired_model:
+    model_cfg = config.get('model', {})
+    if isinstance(model_cfg, str):
+        model_cfg = {'default': model_cfg}
+    elif not isinstance(model_cfg, dict):
+        model_cfg = {}
+    if model_cfg.get('default') != desired_model:
+        model_cfg['default'] = desired_model
+        if desired_provider:
+            model_cfg['provider'] = desired_provider
+        config['model'] = model_cfg
+        changed = True
+        print(f'[entrypoint] Model set to: {desired_model} (provider: {desired_provider or \"auto\"})')
+
+# Apply platform_toolsets from signal-ai config
+if 'platform_toolsets' in override:
+    if config.get('platform_toolsets') != override['platform_toolsets']:
+        config['platform_toolsets'] = override['platform_toolsets']
+        changed = True
+        print(f'[entrypoint] Platform toolsets updated: {override[\"platform_toolsets\"]}')
+
+if changed:
     with open(cfg_path, 'w') as f:
         yaml.dump(config, f, default_flow_style=False)
-    print(f'[entrypoint] Model set to: {desired} (provider: {provider or \"auto\"})')
 else:
-    print(f'[entrypoint] Model already set to: {desired}')
-" 2>&1 || echo "[entrypoint] Warning: failed to apply HERMES_MODEL override"
+    print('[entrypoint] Config already up to date')
+" 2>&1 || echo "[entrypoint] Warning: failed to apply config overrides"
 fi
 
 # SOUL.md
