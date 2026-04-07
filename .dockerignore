@@ -3,13 +3,28 @@
 .gitignore
 .gitmodules
 
-# Dependencies
+# Dependencies (rebuilt in container)
 node_modules
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+*.egg-info
 
 # CI/CD
 .github
 
-# Environment files
+# Environment files (injected at runtime)
 .env
+.env.*
 
-*.md
+# Dev/docs files not needed at runtime
+CONTRIBUTING.md
+README.md
+RELEASE_*.md
+AGENTS.md
+tests/
+docs/superpowers/
+*.log
+.vscode
+.idea

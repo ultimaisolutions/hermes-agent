@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//f/Ultim AI Solutions/signal.ai/**)",
+      "Bash(railway --help)",
+      "Bash(railway add:*)",
+      "Bash(railway variable:*)",
+      "Bash(railway volume:*)",
+      "Bash(railway link:*)"
+    ]
+  }
+}
