@@ -60,6 +60,8 @@ _HERMES_CORE_TOOLS = [
     "send_message",
     # Home Assistant smart home control (gated on HASS_TOKEN via check_fn)
     "ha_list_entities", "ha_get_state", "ha_list_services", "ha_call_service",
+    # Signal AI creator discovery (gated on SIGNAL_DATABASE_URL / SCRAPECREATORS_API_KEY)
+    "get_niche_clusters", "get_rotation_status", "search_instagram_creators", "log_rotation",
 ]
 
 
@@ -198,6 +200,12 @@ TOOLSETS = {
     "homeassistant": {
         "description": "Home Assistant smart home control and monitoring",
         "tools": ["ha_list_entities", "ha_get_state", "ha_list_services", "ha_call_service"],
+        "includes": []
+    },
+
+    "signal_ai": {
+        "description": "Signal AI creator discovery and rotation tracking tools",
+        "tools": ["get_niche_clusters", "get_rotation_status", "search_instagram_creators", "log_rotation"],
         "includes": []
     },
 
