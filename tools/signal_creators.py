@@ -11,7 +11,6 @@ import base64
 import json
 import logging
 import os
-import ssl
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -153,7 +152,7 @@ def _neon_query(sql: str, params: Optional[List[Any]] = None) -> Dict[str, Any]:
         method="POST",
     )
 
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
 
 
@@ -291,7 +290,7 @@ def search_instagram_creators(keyword: str, max_results: int = 10) -> str:
             method="GET",
         )
 
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read())
 
         reels = data.get("reels", [])
