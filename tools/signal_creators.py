@@ -7,7 +7,6 @@ Provides four tools for niche-based Instagram creator discovery:
 - log_rotation: Record search rotation and upsert discovered creators
 """
 
-import base64
 import json
 import logging
 import os
@@ -127,17 +126,14 @@ def _check_scrape() -> bool:
 def _neon_query(sql: str, params: Optional[List[Any]] = None) -> Dict[str, Any]:
     """Execute a SQL query against the Neon HTTP API.
 
-    Reads SIGNAL_DATABASE_URL, parses it to extract host/user/password,
-    POSTs to https://{host}/sql, and returns the parsed JSON response.
+    Authenticates via the Neon-Connection-String header which carries the
+    full postgresql:// connection URI including credentials.  No separate
+    Basic auth header is needed — Neon extracts credentials from the
+    connection string.
     """
     db_url = os.environ.get("SIGNAL_DATABASE_URL", "")
     parsed = urlparse(db_url)
-
     host = parsed.hostname or ""
-    user = parsed.username or ""
-    password = parsed.password or ""
-
-    credentials = base64.b64encode(f"{user}:{password}".encode()).decode()
 
     body = json.dumps({"query": sql, "params": params or []}).encode("utf-8")
 
@@ -146,7 +142,6 @@ def _neon_query(sql: str, params: Optional[List[Any]] = None) -> Dict[str, Any]:
         data=body,
         headers={
             "Content-Type": "application/json",
-            "Authorization": f"Basic {credentials}",
             "Neon-Connection-String": db_url,
         },
         method="POST",
